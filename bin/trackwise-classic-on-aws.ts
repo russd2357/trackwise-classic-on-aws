@@ -4,8 +4,8 @@ import * as cdk from 'aws-cdk-lib';
 import { TrackwiseClassicOnAwsStack } from '../lib/trackwise-classic-on-aws-stack';
 
 const app = new cdk.App();
-const environment = process.env.TW_ENV || 'dev';
-new TrackwiseClassicOnAwsStack(app, 'TrackwiseClassicOnAwsStack', {
+const twEnv = process.env.TW_ENV || 'dev';
+new TrackwiseClassicOnAwsStack(app, 'tw-classic-stack', twEnv, {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */
@@ -19,4 +19,6 @@ new TrackwiseClassicOnAwsStack(app, 'TrackwiseClassicOnAwsStack', {
   // env: { account: '123456789012', region: 'us-east-1' },
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+
+
 });
