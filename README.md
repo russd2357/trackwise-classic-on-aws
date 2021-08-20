@@ -18,3 +18,8 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
  You should configure Host Management for AWS Systems Manager so that an IAM role is created to allow
  access to your EC2 instances on private subnets. Otherwise you will have to add a bastion host in a public subnet to reach them which will add to your deployment cost.
+
+ For more information on AWS Systems Manager Host Management, see https://docs.aws.amazon.com/systems-manager/latest/userguide/quick-setup-host-management.html
+
+ You will need to create a private key file for the EC2 instances in each environment. The keys should follow this naming convention: twc-<env>-key. Be careful - if you deploy these stacks in multiple regions, you will need to declare a key in each region.
+
