@@ -5,6 +5,7 @@ import { InstanceArchitecture, InstanceType, SecurityGroup, SubnetFilter, Subnet
 import { RDS_LOWERCASE_DB_IDENTIFIER } from 'aws-cdk-lib/lib/cx-api';
 import { Construct } from 'constructs';
 import { DatabaseInstanceEngine, SqlServerEngineVersion } from 'aws-cdk-lib/lib/aws-rds';
+import { ManagedPolicy, Role, ServicePrincipal } from 'aws-cdk-lib/lib/aws-iam';
 
 
 //
@@ -36,6 +37,7 @@ export class TwcDevStack extends cdk.Stack {
                     cidrMask: 24
                 },
                 {   // private subnet for db server
+                    // TODO - experiment with ISOLATED 
                     name: 'sn-priv-db',
                     subnetType: ec2.SubnetType.PRIVATE,
                     cidrMask: 24
@@ -69,7 +71,7 @@ export class TwcDevStack extends cdk.Stack {
 
         this.securityGroups.push(sgAppPrivate);
 
-        let sgAppDb = new SecurityGroup(this, 'twc-dev-sg-priv-db', {
+        let sgAppDb = new ec2.SecurityGroup(this, 'twc-dev-sg-priv-db', {
             vpc: this.vpc,
             description: 'Allow database connections only from sgAppPrivate',
             allowAllOutbound: true
@@ -88,13 +90,10 @@ export class TwcDevStack extends cdk.Stack {
     // In the Dev stack you will not have auto scaling so 
     private LaunchInstances(): void {
 
-        let appserver = new ec2.Instance(this, 'twc-dev-appserver', {
-            vpc: this.vpc,
-            instanceType: ec2.InstanceType.of(ec2.InstanceClass.M4, ec2.InstanceSize.LARGE),
-            machineImage: ec2.MachineImage.latestWindows(ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_ENGLISH_64BIT_HYPERV),
-            securityGroup: this.GetAppSecurityGroup(),
-            vpcSubnets: this.vpc.selectSubnets( {subnetGroupName: 'sn-priv-app', availabilityZones: [this.vpc.availabilityZones[0]] }),
-            keyName: 
+        let ssmrole = new Role(this, 'twc-dev-ssmrole', {
+            assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
+            description: 'Role used for System Manager Managed Instances',
+            managedPolicies: [ ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore') ]
         });
 
         let dbserver = new rds.DatabaseInstance(this, 'twc-dev-dbserver', {
@@ -102,8 +101,18 @@ export class TwcDevStack extends cdk.Stack {
             vpcSubnets: this.vpc.selectSubnets( {subnetGroupName: 'sn-priv-db', availabilityZones: [this.vpc.availabilityZones[0]] }),
             engine: rds.DatabaseInstanceEngine.sqlServerSe({ version: rds.SqlServerEngineVersion.VER_15_00_4043_23_V1 }),
             instanceType: ec2.InstanceType.of( ec2.InstanceClass.M4, ec2.InstanceSize.LARGE),
+            credentials: rds.Credentials.fromGeneratedSecret('dbadmin'),
+            multiAz: false
+        });
 
-
+        let appserver = new ec2.Instance(this, 'twc-dev-appserver', {
+            vpc: this.vpc,
+            instanceType: ec2.InstanceType.of(ec2.InstanceClass.M4, ec2.InstanceSize.LARGE),
+            machineImage: ec2.MachineImage.latestWindows(ec2.WindowsVersion.WINDOWS_SERVER_2012_R2_RTM_ENGLISH_64BIT_HYPERV),
+            securityGroup: this.GetAppSecurityGroup(),
+            vpcSubnets: this.vpc.selectSubnets( {subnetGroupName: 'sn-priv-app', availabilityZones: [this.vpc.availabilityZones[0]] }),
+            keyName: 'twc-dev-key',
+            role: ssmrole
         });
     }
 }
